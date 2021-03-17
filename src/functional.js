@@ -1,4 +1,4 @@
-import {check, group} from "k6";
+import { check, group } from "k6";
 import Ajv from 'https://jslib.k6.io/ajv/6.12.5/index.js';
 
 export class FunkBrokenChainException extends Error {
@@ -14,8 +14,8 @@ export class FunkBrokenChainException extends Error {
   }
 }
 
-class Funk{
-  constructor(){
+class Funk {
+  constructor() {
     this.leftHandValue = null;     // resp.status
     this.leftHandValueName = null; // "my status"
     this.rightHandValue = null;    // 200
@@ -24,51 +24,51 @@ class Funk{
     this.ajv = new Ajv();
   };
 
-  as(name){
-    this.leftHandValueName=name;
+  as(name) {
+    this.leftHandValueName = name;
     return this
   }
 
-  _brokenChainCheck(){
-    if(this.chainBroken){
-      if(!this.printedBrokenChainWarning){
+  _brokenChainCheck() {
+    if (this.chainBroken) {
+      if (!this.printedBrokenChainWarning) {
         console.warn("This check has been aborted because the previous check in the chain has failed");
-        this.printedBrokenChainWarning=true;
+        this.printedBrokenChainWarning = true;
       }
       return true
     }
     return false;
   }
 
-  _recordCheck(checkName, isSuccessful, value){
-    if(value !== undefined){
+  _recordCheck(checkName, isSuccessful, value) {
+    if (value !== undefined) {
       check(null, {
         [checkName]: isSuccessful
       }, {
         value: value
       });
     }
-    else{
+    else {
       check(null, {
         [checkName]: isSuccessful
       });
     }
   }
 
-  _breakTheChain(){
+  _breakTheChain() {
     this.chainBroken = true;
     throw new FunkBrokenChainException("Chain broke, skipping this check");
   }
 
-  _leftHandValueIsHttpResponse(calee){
+  _leftHandValueIsHttpResponse(calee) {
     // TODO: I don't know how to check that this.leftHandValue is of type HttpResponse ¯\_(ツ)_/¯
-    if(this.leftHandValue && this.leftHandValue.hasOwnProperty('request')){
+    if (this.leftHandValue && this.leftHandValue.hasOwnProperty('request')) {
       return true;
     }
-    else{
+    else {
       console.error(`The object passed to expect/and for ${calee} isn't a k6 HttpResponse. Aborting the check.`);
       this._breakTheChain();
-      this.printedBrokenChainWarning=true;
+      this.printedBrokenChainWarning = true;
       return false
     }
   }
@@ -100,14 +100,14 @@ class Funk{
     return this;
   }
 
-  toHaveValidJson(){
-    if(this._brokenChainCheck()) return this;
-    if(!this._leftHandValueIsHttpResponse("toHaveValidJson")) return this;
+  toHaveValidJson() {
+    if (this._brokenChainCheck()) return this;
+    if (!this._leftHandValueIsHttpResponse("toHaveValidJson")) return this;
 
     let resp = this.leftHandValue;
 
     let checkIsSuccessful = true;
-    try{
+    try {
       resp.json();
     }
     catch (e) {
@@ -116,128 +116,128 @@ class Funk{
 
     let checkName = `${resp.request.url} has valid json response`
     this._recordCheck(checkName, checkIsSuccessful);
-    if(!checkIsSuccessful) this._breakTheChain();
+    if (!checkIsSuccessful) this._breakTheChain();
 
     return this
   }
 
-  toEqual(rhv){
-    if(this._brokenChainCheck()) return this;
+  toEqual(rhv) {
+    if (this._brokenChainCheck()) return this;
     this.rightHandValue = rhv;
 
     let checkName = `${this.leftHandValue} is ${this.rightHandValue}`;
 
-    let checkIsSuccessful = this.leftHandValue===this.rightHandValue;
+    let checkIsSuccessful = this.leftHandValue === this.rightHandValue;
 
-    if(this.leftHandValueName){
+    if (this.leftHandValueName) {
       checkName = `${this.leftHandValueName} is ${this.leftHandValue}.`;
 
-      if(!checkIsSuccessful){
+      if (!checkIsSuccessful) {
         checkName += ` Expected '${this.rightHandValue}'`;
       }
     }
 
     this._recordCheck(checkName, checkIsSuccessful, this.rightHandValue);
 
-    if(!checkIsSuccessful) this._breakTheChain();
+    if (!checkIsSuccessful) this._breakTheChain();
 
     return this;
   }
 
-  toBeGreaterThan(rhv){
-    if(this._brokenChainCheck()) return this;
+  toBeGreaterThan(rhv) {
+    if (this._brokenChainCheck()) return this;
 
     this.rightHandValue = rhv;
 
-    let checkName = `${this.leftHandValueName||this.leftHandValue} is greater than ${this.rightHandValue}`;
+    let checkName = `${this.leftHandValueName || this.leftHandValue} is greater than ${this.rightHandValue}`;
 
-    let checkIsSuccessful = this.leftHandValue>this.rightHandValue;
+    let checkIsSuccessful = this.leftHandValue > this.rightHandValue;
 
     this._recordCheck(checkName, checkIsSuccessful, this.leftHandValue);
 
-    if(!checkIsSuccessful) this._breakTheChain();
+    if (!checkIsSuccessful) this._breakTheChain();
 
     return this;
   }
 
-  toBeGreaterThanOrEqual(rhv){
-    if(this._brokenChainCheck()) return this;
+  toBeGreaterThanOrEqual(rhv) {
+    if (this._brokenChainCheck()) return this;
 
     this.rightHandValue = rhv;
 
-    let checkName = `${this.leftHandValueName||this.leftHandValue} is greater or equal to ${this.rightHandValue}`;
+    let checkName = `${this.leftHandValueName || this.leftHandValue} is greater or equal to ${this.rightHandValue}`;
 
-    let checkIsSuccessful = this.leftHandValue>=this.rightHandValue;
+    let checkIsSuccessful = this.leftHandValue >= this.rightHandValue;
 
     this._recordCheck(checkName, checkIsSuccessful, this.leftHandValue);
 
-    if(!checkIsSuccessful) this._breakTheChain();
+    if (!checkIsSuccessful) this._breakTheChain();
 
     return this;
   }
-  toBeLessThan(rhv){
-    if(this._brokenChainCheck()) return this;
+  toBeLessThan(rhv) {
+    if (this._brokenChainCheck()) return this;
 
     this.rightHandValue = rhv;
 
-    let checkName = `${this.leftHandValueName||this.leftHandValue} is less than ${this.rightHandValue}`;
+    let checkName = `${this.leftHandValueName || this.leftHandValue} is less than ${this.rightHandValue}`;
 
-    let checkIsSuccessful = this.leftHandValue<this.rightHandValue;
+    let checkIsSuccessful = this.leftHandValue < this.rightHandValue;
 
     this._recordCheck(checkName, checkIsSuccessful, this.leftHandValue);
 
-    if(!checkIsSuccessful) this._breakTheChain();
+    if (!checkIsSuccessful) this._breakTheChain();
 
     return this;
   }
-  toBeLessThanOrEqual(rhv){
-    if(this._brokenChainCheck()) return this;
+  toBeLessThanOrEqual(rhv) {
+    if (this._brokenChainCheck()) return this;
 
     this.rightHandValue = rhv;
 
-    let checkName = `${this.leftHandValueName||this.leftHandValue} is less or equal to ${this.rightHandValue}`;
+    let checkName = `${this.leftHandValueName || this.leftHandValue} is less or equal to ${this.rightHandValue}`;
 
-    let checkIsSuccessful = this.leftHandValue<=this.rightHandValue;
+    let checkIsSuccessful = this.leftHandValue <= this.rightHandValue;
 
     this._recordCheck(checkName, checkIsSuccessful, this.leftHandValue);
 
-    if(!checkIsSuccessful) this._breakTheChain();
+    if (!checkIsSuccessful) this._breakTheChain();
 
     return this;
   }
 
-  toBeTruthy(){
-    if(this._brokenChainCheck()) return this;
+  toBeTruthy() {
+    if (this._brokenChainCheck()) return this;
 
-    let checkName = `${this.leftHandValueName||this.leftHandValue} is truthy.`;
+    let checkName = `${this.leftHandValueName || this.leftHandValue} is truthy.`;
 
     let checkIsSuccessful = this.leftHandValue ? true : false;
 
     this._recordCheck(checkName, checkIsSuccessful, this.leftHandValue);
 
-    if(!checkIsSuccessful) this._breakTheChain();
+    if (!checkIsSuccessful) this._breakTheChain();
 
     return this;
   }
 
-  toBeBetween(from, to){
-    if(this._brokenChainCheck()) return this;
+  toBeBetween(from, to) {
+    if (this._brokenChainCheck()) return this;
 
     this.rightHandValue = `${from} - ${to}`;
 
-    let checkName = `${this.leftHandValueName||this.leftHandValue} is between ${this.rightHandValue}`;
+    let checkName = `${this.leftHandValueName || this.leftHandValue} is between ${this.rightHandValue}`;
 
-    let checkIsSuccessful = this.leftHandValue>= from && this.leftHandValue <= to;
+    let checkIsSuccessful = this.leftHandValue >= from && this.leftHandValue <= to;
 
-    this._recordCheck(checkName,  checkIsSuccessful, this.leftHandValue);
+    this._recordCheck(checkName, checkIsSuccessful, this.leftHandValue);
 
-    if(!checkIsSuccessful) this._breakTheChain()
+    if (!checkIsSuccessful) this._breakTheChain()
 
     return this;
   }
 
-  and(lhv){ // same as expect() but chained.
-    if(this._brokenChainCheck()) return this;
+  and(lhv) { // same as expect() but chained.
+    if (this._brokenChainCheck()) return this;
     this.leftHandValue = lhv;
     this.leftHandValueName = null; // clearing the previous .as()
     return this;
@@ -245,21 +245,21 @@ class Funk{
 
 }
 
-let expect = function(value1){
+let expect = function (value1) {
   let state = new Funk();
   state.leftHandValue = value1;
   return state;
 };
 
-function handleUnexpectedException(e, testName){
+function handleUnexpectedException(e, testName) {
   console.error(`Exception raised in test "${testName}". Failing the test and continuing. \n${e}`)
 
   check(null, {
-     [`Exception raised "${e}"`]: false
-    });
+    [`Exception raised "${e}"`]: false
+  });
 }
 
-let test = function(testName, arrow){
+let describe = function (testName, callback) {
   let t = {
     expect,
   };
@@ -267,15 +267,15 @@ let test = function(testName, arrow){
   let success = true;
 
   group(testName, () => {
-    try{
-      arrow(t);
-      success=true;
+    try {
+      callback(t);
+      success = true;
     }
     catch (e) {
-      if(e.brokenChain){
+      if (e.brokenChain) {
         success = false;
       }
-      else{
+      else {
         success = false;
         handleUnexpectedException(e, testName)
       }
@@ -286,5 +286,5 @@ let test = function(testName, arrow){
 
 
 export {
-  test,
+  describe,
 }
