@@ -1,14 +1,14 @@
-# k6-jslib-functional
-Functional library for k6
+# k6-jslib-expect
+Expect library for k6
 
-Docs: http://k6.io/docs/javascript-api/jslib/functional
+Docs: http://k6.io/docs/javascript-api/jslib/expect
 
 Download from: https://jslib.k6.io/
 
 ## Example
 
 ```javascript
-import { test } from 'https://jslib.k6.io/functional/0.0.3/index.js';
+import { describe } from 'https://jslib.k6.io/expect/0.0.4/index.js';
 import http from 'k6/http';
 
 export default function testSuite() {
@@ -20,5 +20,6 @@ export default function testSuite() {
       .and(response).toHaveValidJson()
       .and(response.json().length).as("number of crocs").toBeGreaterThan(5);
   })
+
 } 
 ```
