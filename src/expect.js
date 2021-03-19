@@ -1,7 +1,7 @@
 import { check, group } from "k6";
 import Ajv from 'https://jslib.k6.io/ajv/6.12.5/index.js';
 
-export class FunkBrokenChainException extends Error {
+export class BrokenChainException extends Error {
   constructor(message) {
     super(message);
     this.brokenChain = true;
@@ -14,7 +14,7 @@ export class FunkBrokenChainException extends Error {
   }
 }
 
-class Funk {
+class ChainLink {
   constructor() {
     this.leftHandValue = null;     // resp.status
     this.leftHandValueName = null; // "my status"
@@ -57,7 +57,7 @@ class Funk {
 
   _breakTheChain() {
     this.chainBroken = true;
-    throw new FunkBrokenChainException("Chain broke, skipping this check");
+    throw new BrokenChainException("Chain broke, skipping this check");
   }
 
   _leftHandValueIsHttpResponse(calee) {
@@ -246,7 +246,7 @@ class Funk {
 }
 
 let expect = function (value1) {
-  let state = new Funk();
+  let state = new ChainLink();
   state.leftHandValue = value1;
   return state;
 };
@@ -259,7 +259,27 @@ function handleUnexpectedException(e, testName) {
   });
 }
 
+
+
+let _libraryState = {
+  currentIteration: 0,
+  describeChainBroken: false,
+}
+
+let isDescribeChainBroken = function(){
+  if(__ITER == _libraryState.currentIteration){
+    return _libraryState.describeChainBroken;
+  }
+  _libraryState.currentIteration = __ITER;
+  _libraryState.describeChainBroken = false;
+
+  return _libraryState.describeChainBroken;
+}
+
+
 let describe = function (testName, callback) {
+  if(isDescribeChainBroken()) return false;
+
   let t = {
     expect,
   };
@@ -272,11 +292,12 @@ let describe = function (testName, callback) {
       success = true;
     }
     catch (e) {
+      success = false;
+      _libraryState.describeChainBroken = true;
       if (e.brokenChain) {
-        success = false;
+        // pass
       }
       else {
-        success = false;
         handleUnexpectedException(e, testName)
       }
     }
@@ -284,7 +305,12 @@ let describe = function (testName, callback) {
   return success;
 };
 
+let wrapper = function(f){
+  return f;
+}
+
 
 export {
   describe,
+  wrapper
 }
