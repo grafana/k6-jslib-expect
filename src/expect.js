@@ -61,7 +61,7 @@ class Funk {
   }
 
   _leftHandValueIsHttpResponse(calee) {
-    // TODO: I don't know how to check that this.leftHandValue is of type HttpResponse ¯\_(ツ)_/¯
+    // TODO: I don't know how to check that this.leftHandValue is of type HttpResponse 
     if (this.leftHandValue && this.leftHandValue.hasOwnProperty('request')) {
       return true;
     }
@@ -73,7 +73,6 @@ class Funk {
     }
   }
 
-
   toMatchAPISchema(schema) {
     let validate = this.ajv.compile(schema);
     let data = this.leftHandValue;
@@ -81,20 +80,20 @@ class Funk {
     let is_valid = validate(data, schema);
     let name = this.leftHandValueName || '';
 
-
     check(is_valid, {
       [`${name} schema validation`]: (is_valid) => is_valid
     });
 
     // optional. It records specific error messages as checks.
     if (!is_valid) {
-      console.error(JSON.stringify(validate.errors))
+      // console.error(JSON.stringify(validate.errors));
 
       validate.errors.forEach(error => {
         check(is_valid, {
           [`${name} ${error.dataPath} ${error.message}`]: (is_valid) => is_valid
         });
       });
+      this._breakTheChain();
     }
 
     return this;
@@ -231,7 +230,7 @@ class Funk {
 
     this._recordCheck(checkName, checkIsSuccessful, this.leftHandValue);
 
-    if (!checkIsSuccessful) this._breakTheChain()
+    if (!checkIsSuccessful) this._breakTheChain();
 
     return this;
   }
