@@ -113,7 +113,7 @@ class Funk {
       checkIsSuccessful = false;
     }
 
-    let checkName = `${resp.request.url} has valid json response`
+    let checkName = (this.leftHandValueName || resp.request.url) + ' has valid json response'
     this._recordCheck(checkName, checkIsSuccessful);
     if (!checkIsSuccessful) this._breakTheChain();
 
