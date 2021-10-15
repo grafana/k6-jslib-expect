@@ -1,6 +1,52 @@
 import { check, group } from "k6";
 import Ajv from 'https://jslib.k6.io/ajv/6.12.5/index.js';
 
+import { expect, util, Assertion, AssertionError, config } from "https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js";
+
+/*
+Hacking the Chai library to use k6 checks.
+*/
+util.overwriteMethod(Assertion.prototype, 'assert', function (_super) {
+  return function (expr, msg, negateMsg, expected, _actual, showDiff) {
+    var ok = util.test(this, arguments);
+    if (false !== showDiff) showDiff = true;
+    if (undefined === expected && undefined === _actual) showDiff = false;
+    if (true !== config.showDiff) showDiff = false;
+
+    msg = util.getMessage(this, arguments);
+    var actual = util.getActual(this, arguments);
+    var assertionErrorObjectProperties = {
+        actual: actual
+      , expected: expected
+      , showDiff: showDiff
+    };
+
+    var operator = util.getOperator(this, arguments);
+    if (operator) {
+      assertionErrorObjectProperties.operator = operator;
+    }
+
+    if (!ok) {
+
+      // console.warn(msg)
+
+      check(null, {
+        [msg]: false
+      })
+      throw new AssertionError(
+        msg,
+        assertionErrorObjectProperties,
+        (config.includeStack) ? this.assert : util.flag(this, 'ssfi'));
+    }
+    else{
+      check(null, {
+        [msg]: true
+      })
+    }
+  };
+});
+
+
 export class FunkBrokenChainException extends Error {
   constructor(message) {
     super(message);
@@ -244,7 +290,7 @@ class Funk {
 
 }
 
-let expect = function (value1) {
+let ourLegacyExpect = function (value1) {
   let state = new Funk();
   state.leftHandValue = value1;
   return state;
@@ -258,25 +304,75 @@ function handleUnexpectedException(e, testName) {
   });
 }
 
-let describe = function (testName, callback) {
+// function runStep(stepName, stepFunction){
+//   let t = {
+//     expect,
+//   };
+//   let success = true;
+//   group(stepName, () => {
+//     try {
+//       stepFunction(t);
+//       success = true;
+//     }
+//     catch (e) {
+//       if (e.brokenChain) { // legacy way
+//         success = false;
+//       }
+//       else if (e.name === "AssertionError" ) { // chai way
+//         success = false;
+//       }
+//       else {
+//         success = false;
+//         handleUnexpectedException(e, stepName)
+//       }
+//     }
+//   });
+//   return success;
+// }
+
+// let flowSteps = [];
+
+// let workflow = function (flowName, flowFunction){
+
+//   group(flowName, () => {
+//     flowSteps = [];
+//     flowFunction();
+//     console.log(JSON.stringify(flowSteps, null, 2));
+
+//     for(let step of flowSteps){
+//       const success = runStep(step.stepName, step.stepFunction)
+//       if(!success) break;
+//     }
+
+//   });
+// }
+// let describe = function (stepName, stepFunction) {
+//     flowSteps.push({stepName, stepFunction});
+// }
+
+let describe = function (stepName, stepFunction) {
+
   let t = {
-    expect,
+    'expect': ourLegacyExpect
   };
 
   let success = true;
 
-  group(testName, () => {
+  group(stepName, () => {
     try {
-      callback(t);
+      stepFunction(t);
       success = true;
     }
     catch (e) {
-      if (e.brokenChain) {
+      if (e.brokenChain) { // legacy way
+        success = false;
+      }
+      else if (e.name === "AssertionError" ) { // chai way
         success = false;
       }
       else {
         success = false;
-        handleUnexpectedException(e, testName)
+        handleUnexpectedException(e, stepName)
       }
     }
   });
@@ -286,4 +382,6 @@ let describe = function (testName, callback) {
 
 export {
   describe,
+  expect,
+  // workflow,
 }
