@@ -1,21 +1,33 @@
 import { check, group } from "k6";
 import Ajv from 'https://jslib.k6.io/ajv/6.12.5/index.js';
+import chai from "https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js";
 
-import { expect, util, Assertion, AssertionError, config } from "https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js";
+var util = chai.util, 
+    expect = chai.expect,
+    Assertion = chai.Assertion,
+    AssertionError = chai.AssertionError,
+    config = chai.config,
+    flag = chai.util.flag;
+var _ajv = new Ajv();
 
 const truncateString = (str, len) => str.length > len ? `${str.substring(0, len)}...` : str;
 
 config.truncateValueThreshold = 100; // individual variables should be up to 100 chars.
 config.truncateMsgThreshold = 300; // whole check() message must be below 300 chars.
 
-function k6getMessage(obj, args){
-  var negate = util.flag(obj, 'negate')
-    , val = util.flag(obj, 'object')
+//
+// The otiginal chai.util.getMessage did not truncate strings.
+// We are overriding it to prevent users from shooting themselves in a foot by
+// assering large request.body and getting it printed on the terminal as a check message. 
+// 
+function getMessage(obj, args){
+  var negate = flag(obj, 'negate')
+    , val = flag(obj, 'object')
     , expected = args[3]
     , actual = util.getActual(obj, args)
     , msg = negate ? args[2] : args[1]
-    , flagMsg = util.flag(obj, 'message')
-    , anonymizeMsgFunction = util.flag(obj, 'anonymizeMsgFunction');
+    , flagMsg = flag(obj, 'message')
+    , anonymizeMsgFunction = flag(obj, 'anonymizeMsgFunction');
 
   if(anonymizeMsgFunction){
     msg = anonymizeMsgFunction(msg)
@@ -34,7 +46,8 @@ config.truncateValueThreshold
 }
 
 /*
-Hacking the Chai library to use k6 checks.
+Overriding Chai's main assert() function to inject check() calls for both
+successful and failed assertions. 
 */
 util.overwriteMethod(Assertion.prototype, 'assert', function (_super) {
   return function (expr, msg, negateMsg, expected, _actual, showDiff) {
@@ -43,7 +56,7 @@ util.overwriteMethod(Assertion.prototype, 'assert', function (_super) {
     if (undefined === expected && undefined === _actual) showDiff = false;
     if (true !== config.showDiff) showDiff = false;
 
-    msg = k6getMessage(this, arguments);
+    msg = getMessage(this, arguments); // our implementation.
 
     var actual = util.getActual(this, arguments);
     var assertionErrorObjectProperties = {
@@ -58,7 +71,6 @@ util.overwriteMethod(Assertion.prototype, 'assert', function (_super) {
     }
 
     if (!ok) {
-
       check(null, {
         [msg]: false
       })
@@ -75,15 +87,9 @@ util.overwriteMethod(Assertion.prototype, 'assert', function (_super) {
   };
 });
 
+util.addMethod(Assertion.prototype, 'matchSchema', function (schema) {
+  var data = flag(this, 'object');
 
-
-const _ajv = new Ajv();
-
-util.addMethod(Assertion.prototype, 'matchApiSchema', function (schema) {
-  var data = util.flag(this, 'object');
-  // var data = util.flag(this, 'apiSchemaMessage', "Hejo");
-
-  // new chai.Assertion(obj).to.be.equal(str);
   let validate = _ajv.compile(schema);
 
   let is_valid = validate(data, schema);
@@ -94,7 +100,7 @@ util.addMethod(Assertion.prototype, 'matchApiSchema', function (schema) {
 
     validate.errors.forEach(error => {
       check(is_valid, {
-        [`XXX ${error.dataPath} ${error.message}`]: (is_valid) => is_valid
+        [`${error.dataPath} ${error.message}`]: (is_valid) => is_valid
       });
     });
   }
@@ -108,18 +114,18 @@ util.addMethod(Assertion.prototype, 'matchApiSchema', function (schema) {
   );  
 });
 
+// anonymizes the value of "this" in the message
+// useful for hiding tokens/passwords in the check messages.
 util.addMethod(Assertion.prototype, 'anonymize', function (anonymizeMsgFunction) {
   anonymizeMsgFunction = anonymizeMsgFunction || function(msg) {
     return msg.replace(/#\{this\}/g, function () { return "<anonymized>"; })
   }
 
-  util.flag(this, 'anonymizeMsgFunction', anonymizeMsgFunction);
+  flag(this, 'anonymizeMsgFunction', anonymizeMsgFunction);
 });
 
-
 util.addMethod(Assertion.prototype, 'validJsonBody', function () {
-
-  var response = util.flag(this, 'object');
+  var response = flag(this, 'object');
 
   let checkIsSuccessful = true;
   try {
@@ -136,7 +142,6 @@ util.addMethod(Assertion.prototype, 'validJsonBody', function () {
   , null   // expected
   , null   // actual
   );    
-
 });
 
 function handleUnexpectedException(e, testName) {
@@ -147,54 +152,7 @@ function handleUnexpectedException(e, testName) {
   });
 }
 
-// function runStep(stepName, stepFunction){
-//   let t = {
-//     expect,
-//   };
-//   let success = true;
-//   group(stepName, () => {
-//     try {
-//       stepFunction(t);
-//       success = true;
-//     }
-//     catch (e) {
-//       if (e.brokenChain) { // legacy way
-//         success = false;
-//       }
-//       else if (e.name === "AssertionError" ) { // chai way
-//         success = false;
-//       }
-//       else {
-//         success = false;
-//         handleUnexpectedException(e, stepName)
-//       }
-//     }
-//   });
-//   return success;
-// }
-
-// let flowSteps = [];
-
-// let workflow = function (flowName, flowFunction){
-
-//   group(flowName, () => {
-//     flowSteps = [];
-//     flowFunction();
-//     console.log(JSON.stringify(flowSteps, null, 2));
-
-//     for(let step of flowSteps){
-//       const success = runStep(step.stepName, step.stepFunction)
-//       if(!success) break;
-//     }
-
-//   });
-// }
-// let describe = function (stepName, stepFunction) {
-//     flowSteps.push({stepName, stepFunction});
-// }
-
 let describe = function (stepName, stepFunction) {
-
   let success = true;
 
   group(stepName, () => {
@@ -222,5 +180,5 @@ let describe = function (stepName, stepFunction) {
 export {
   describe,
   expect,
-  // workflow,
+  chai, // allow users to extend the library.
 }
