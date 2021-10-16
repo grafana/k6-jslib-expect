@@ -1,5 +1,4 @@
 import { check, group } from "k6";
-import Ajv from 'https://jslib.k6.io/ajv/6.12.5/index.js';
 import chai from "https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js";
 
 var util = chai.util, 
@@ -8,7 +7,6 @@ var util = chai.util,
     AssertionError = chai.AssertionError,
     config = chai.config,
     flag = chai.util.flag;
-var _ajv = new Ajv();
 
 const truncateString = (str, len) => str.length > len ? `${str.substring(0, len)}...` : str;
 
@@ -16,7 +14,7 @@ config.truncateValueThreshold = 100; // individual variables should be up to 100
 config.truncateMsgThreshold = 300; // whole check() message must be below 300 chars.
 
 //
-// The otiginal chai.util.getMessage did not truncate strings.
+// The original chai.util.getMessage did not truncate strings.
 // We are overriding it to prevent users from shooting themselves in a foot by
 // assering large request.body and getting it printed on the terminal as a check message. 
 // 
@@ -87,33 +85,6 @@ util.overwriteMethod(Assertion.prototype, 'assert', function (_super) {
   };
 });
 
-util.addMethod(Assertion.prototype, 'matchSchema', function (schema) {
-  var data = flag(this, 'object');
-
-  let validate = _ajv.compile(schema);
-
-  let is_valid = validate(data, schema);
-
-  // optional. It records specific error messages as checks.
-  if (!is_valid) {
-    console.error(JSON.stringify(validate.errors));
-
-    validate.errors.forEach(error => {
-      check(is_valid, {
-        [`${error.dataPath} ${error.message}`]: (is_valid) => is_valid
-      });
-    });
-  }
-
-  this.assert(
-    is_valid
-  , "expected to match API schema"
-  , "expected to not not match the API schema"
-  , null   // expected
-  , null   // actual
-  );  
-});
-
 // anonymizes the value of "this" in the message
 // useful for hiding tokens/passwords in the check messages.
 util.addMethod(Assertion.prototype, 'anonymize', function (anonymizeMsgFunction) {
@@ -161,10 +132,7 @@ let describe = function (stepName, stepFunction) {
       success = true;
     }
     catch (e) {
-      if (e.brokenChain) { // legacy way
-        success = false;
-      }
-      else if (e.name === "AssertionError" ) { // chai way
+      if (e.name === "AssertionError" ) { // chai way
         success = false;
       }
       else {
