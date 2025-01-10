@@ -1,6 +1,8 @@
 # k6-jslib-expect
 Expect library for k6
 
+# DEPRECATED. Please use https://github.com/grafana/k6-jslib-k6chaijs
+
 Docs: http://k6.io/docs/javascript-api/jslib/expect
 
 Download from: https://jslib.k6.io/
